@@ -137,17 +137,16 @@ function loadProjectFile() {
   var projectFile;
 
   try {
+    // Then cordova 7.0
+    projectFile = loadProjectFileCordova7();
+  } catch (e) {
     // try pre-5.0 cordova structure
     platform_ios = context.requireCordovaModule('cordova-lib/src/plugman/platforms')['ios'];
     projectFile = platform_ios.parseProjectFile(iosPlatformPath());
-  } catch (e) {
-    try {
+    try {} catch (e) {
       // let's try cordova 5.0 structure
       platform_ios = context.requireCordovaModule('cordova-lib/src/plugman/platforms/ios');
       projectFile = platform_ios.parseProjectFile(iosPlatformPath());
-    } catch (e) {
-      // Then cordova 7.0
-      projectFile = loadProjectFileCordova7();
     }
   }
 
@@ -160,39 +159,39 @@ function loadProjectFile() {
  * @return {Object} projectFile - project file information
  */
 function loadProjectFileCordova7() {
-    var project_files = context.requireCordovaModule('glob').sync(path.join(iosPlatformPath(), '*.xcodeproj', 'project.pbxproj'));
+  var project_files = context.requireCordovaModule('glob').sync(path.join(iosPlatformPath(), '*.xcodeproj', 'project.pbxproj'));
 
-    if (project_files.length === 0) {
-        throw new Error('does not appear to be an xcode project (no xcode project file)');
+  if (project_files.length === 0) {
+    throw new Error('does not appear to be an xcode project (no xcode project file)');
+  }
+
+  var pbxPath = project_files[0];
+
+  var xcodeproj = context.requireCordovaModule('xcode').project(pbxPath);
+  xcodeproj.parseSync();
+
+  var xCodeProjectFile = {
+    'xcode': xcodeproj,
+    write: function () {
+      var fs = context.requireCordovaModule('fs');
+
+      var frameworks_file = path.join(iosPlatformPath(), 'frameworks.json');
+      var frameworks = {};
+      try {
+        frameworks = context.requireCordovaModule(frameworks_file);
+      } catch (e) {}
+
+      fs.writeFileSync(pbxPath, xcodeproj.writeSync());
+      if (Object.keys(frameworks).length === 0) {
+        // If there is no framework references remain in the project, just remove this file
+        context.requireCordovaModule('shelljs').rm('-rf', frameworks_file);
+        return;
+      }
+      fs.writeFileSync(frameworks_file, JSON.stringify(this.frameworks, null, 4));
     }
+  };
 
-    var pbxPath = project_files[0];
-
-    var xcodeproj = context.requireCordovaModule('xcode').project(pbxPath);
-    xcodeproj.parseSync();
-
-    var xCodeProjectFile = {
-        'xcode': xcodeproj,
-        write: function () {
-            var fs = context.requireCordovaModule('fs');
-
-            var frameworks_file = path.join(iosPlatformPath(), 'frameworks.json');
-            var frameworks = {};
-            try {
-                frameworks = context.requireCordovaModule(frameworks_file);
-            } catch (e) { }
-
-            fs.writeFileSync(pbxPath, xcodeproj.writeSync());
-            if (Object.keys(frameworks).length === 0){
-                // If there is no framework references remain in the project, just remove this file
-                context.requireCordovaModule('shelljs').rm('-rf', frameworks_file);
-                return;
-            }
-            fs.writeFileSync(frameworks_file, JSON.stringify(this.frameworks, null, 4));
-        }
-    };
-
-    return xCodeProjectFile;
+  return xCodeProjectFile;
 }
 
 /**

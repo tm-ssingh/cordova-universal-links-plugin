@@ -140,10 +140,11 @@ function loadProjectFile() {
     // Then cordova 7.0
     projectFile = loadProjectFileCordova7();
   } catch (e) {
-    // try pre-5.0 cordova structure
-    platform_ios = context.requireCordovaModule('cordova-lib/src/plugman/platforms')['ios'];
-    projectFile = platform_ios.parseProjectFile(iosPlatformPath());
-    try {} catch (e) {
+    try {
+      // try pre-5.0 cordova structure
+      platform_ios = context.requireCordovaModule('cordova-lib/src/plugman/platforms')['ios'];
+      projectFile = platform_ios.parseProjectFile(iosPlatformPath());
+    } catch (e) {
       // let's try cordova 5.0 structure
       platform_ios = context.requireCordovaModule('cordova-lib/src/plugman/platforms/ios');
       projectFile = platform_ios.parseProjectFile(iosPlatformPath());
